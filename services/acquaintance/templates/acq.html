@@ -853,7 +853,7 @@
         // ---------- File management (auto-load) ----------
         async function updateFileList() {
             try {
-                const response = await fetch('/api/get_loaded_files');
+                const response = await fetch('/api/acquaintance/get_loaded_files');
                 currentFiles = await response.json();
                 const container = document.getElementById('fileTags');
                 const fileCount = document.getElementById('loadedFiles');
@@ -870,7 +870,7 @@
                     `).join('');
                 }
                 // Get user count
-                const countResp = await fetch('/api/get_user_count');
+                const countResp = await fetch('/api/acquaintance/get_user_count');
                 const count = await countResp.json();
                 document.getElementById('totalUsers').textContent = `${count.toLocaleString()} users loaded`;
             } catch(e) { console.error(e); }
@@ -879,7 +879,7 @@
         // ---------- Filter options ----------
         async function loadFilterOptions() {
             try {
-                const response = await fetch('/api/get_filter_options');
+                const response = await fetch('/api/acquaintance/get_filter_options');
                 const options = await response.json();
                 const linkedSelect = document.getElementById('filterLinked');
                 const currentLinked = linkedSelect.value;
@@ -937,7 +937,7 @@
             const crew = selectedCrew;
             showLoading();
             try {
-                const url = `/api/search_with_filters?query=${encodeURIComponent(query)}&linked_service=${encodeURIComponent(linked)}&crew=${encodeURIComponent(crew)}`;
+                const url = `/api/acquaintance/search_with_filters?query=${encodeURIComponent(query)}&linked_service=${encodeURIComponent(linked)}&crew=${encodeURIComponent(crew)}`;
                 const response = await fetch(url);
                 const results = await response.json();
                 fullResults = results;
@@ -953,7 +953,7 @@
             if (!query) { showToast('Enter a RID', 'error'); return; }
             showLoading();
             try {
-                const response = await fetch(`/api/search_by_rid?rid=${encodeURIComponent(query)}`);
+                const response = await fetch(`/api/acquaintance/search_by_rid?rid=${encodeURIComponent(query)}`);
                 const results = await response.json();
                 fullResults = results;
                 currentPage = 1;
@@ -968,7 +968,7 @@
             if (!query) { showToast('Enter a username', 'error'); return; }
             showLoading();
             try {
-                const response = await fetch(`/api/search_by_username?username=${encodeURIComponent(query)}`);
+                const response = await fetch(`/api/acquaintance/search_by_username?username=${encodeURIComponent(query)}`);
                 const results = await response.json();
                 fullResults = results;
                 currentPage = 1;
@@ -1041,7 +1041,7 @@
         // ---------- Profile modal ----------
         async function showDetails(username, filename) {
             try {
-                const response = await fetch(`/api/get_user_details?username=${encodeURIComponent(username)}&filename=${encodeURIComponent(filename)}`);
+                const response = await fetch(`/api/acquaintance/get_user_details?username=${encodeURIComponent(username)}&filename=${encodeURIComponent(filename)}`);
                 const details = await response.json();
                 if (details.error) { showToast(details.error, 'error'); return; }
                 currentModalUser = { username, filename };
@@ -1084,7 +1084,7 @@
             if (existing) { existing.remove(); btn.textContent = 'Check Deduced Friends'; btn.disabled = false; return; }
             btn.disabled = true; btn.textContent = 'Loading...';
             try {
-                const response = await fetch(`/api/get_deduced_friends?username=${encodeURIComponent(username)}&filename=${encodeURIComponent(filename)}`);
+                const response = await fetch(`/api/acquaintance/get_deduced_friends?username=${encodeURIComponent(username)}&filename=${encodeURIComponent(filename)}`);
                 const result = await response.json();
                 const entries = Object.entries(result);
                 if (entries.length === 0) { showToast('No deduced friends found.', 'error'); btn.textContent = 'Check Deduced Friends'; btn.disabled = false; return; }
@@ -1112,7 +1112,7 @@
 
             let targetUser = null, targetFile = null;
             try {
-                const response = await fetch(`/api/search_by_username?username=${encodeURIComponent(username)}`);
+                const response = await fetch(`/api/acquaintance/search_by_username?username=${encodeURIComponent(username)}`);
                 const results = await response.json();
                 const firstFile = Object.keys(results)[0];
                 if (firstFile && results[firstFile].length > 0) { targetUser = results[firstFile][0]; targetFile = firstFile; }
@@ -1122,7 +1122,7 @@
             const depth = parseInt(document.getElementById('graphDepthSlider').value) || 2;
             showLoading();
             try {
-                const response = await fetch(`/api/get_ego_graph?username=${encodeURIComponent(targetUser.username)}&filename=${encodeURIComponent(targetFile)}&depth=${depth}`);
+                const response = await fetch(`/api/acquaintance/get_ego_graph?username=${encodeURIComponent(targetUser.username)}&filename=${encodeURIComponent(targetFile)}&depth=${depth}`);
                 const graphData = await response.json();
                 if (graphData.error) { showToast('Error: ' + graphData.error, 'error'); hideLoading(); return; }
                 if (graphData.warning) showToast(graphData.warning, 'warning');
@@ -1280,7 +1280,7 @@
         async function recenterGraph(rid, username) {
             showLoading();
             try {
-                const response = await fetch('/api/change_graph_root', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({rid}) });
+                const response = await fetch('/api/acquaintance/change_graph_root', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({rid}) });
                 const graphData = await response.json();
                 if (graphData.error) { showToast(graphData.error, 'error'); hideLoading(); return; }
                 renderSigma(graphData);
@@ -1318,20 +1318,20 @@
             try {
                 let startRid = startInput, endRid = endInput;
                 if (!/^\\d+$/.test(startInput)) {
-                    const resp = await fetch(`/api/search_by_username?username=${encodeURIComponent(startInput)}`);
+                    const resp = await fetch(`/api/acquaintance/search_by_username?username=${encodeURIComponent(startInput)}`);
                     const results = await resp.json();
                     const firstFile = Object.keys(results)[0];
                     if (firstFile && results[firstFile].length > 0) startRid = results[firstFile][0].rockstar_id;
                     else throw new Error(`Could not find user: ${startInput}`);
                 }
                 if (!/^\\d+$/.test(endInput)) {
-                    const resp = await fetch(`/api/search_by_username?username=${encodeURIComponent(endInput)}`);
+                    const resp = await fetch(`/api/acquaintance/search_by_username?username=${encodeURIComponent(endInput)}`);
                     const results = await resp.json();
                     const firstFile = Object.keys(results)[0];
                     if (firstFile && results[firstFile].length > 0) endRid = results[firstFile][0].rockstar_id;
                     else throw new Error(`Could not find user: ${endInput}`);
                 }
-                const response = await fetch('/api/find_connection_paths', {
+                const response = await fetch('/api/acquaintance/find_connection_paths', {
                     method: 'POST',
                     headers: {'Content-Type':'application/json'},
                     body: JSON.stringify({ start_rid: startRid, end_rid: endRid, max_depth: maxDepth, max_paths: maxPaths })
