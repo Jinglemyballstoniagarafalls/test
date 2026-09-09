@@ -8,17 +8,10 @@ from datetime import datetime
 from typing import Dict, List, Any, Optional, Set, Tuple
 from dataclasses import dataclass
 
-# import requests   # not used, can be removed if you like
-from flask import Flask, request, jsonify, send_from_directory, render_template_string, render_template
-
-# ------------------------------------------------------------
-# Only ONE Flask app and ONE Api instance
-# ------------------------------------------------------------
-app = Flask(__name__, static_folder='static')
-api = Api()   # defined below
+from flask import Flask, request, jsonify, send_from_directory, render_template
 
 # --------------------------------------------
-# HELPER FUNCTIONS (unchanged)
+# HELPER FUNCTIONS
 # --------------------------------------------
 class Colors:
     HEADER = '\033[95m'
@@ -59,7 +52,7 @@ def atomic_save(data, filepath):
     os.replace(temp_path, filepath)
 
 # --------------------------------------------
-# UserData & UserDatabase (unchanged)
+# UserData & UserDatabase
 # --------------------------------------------
 @dataclass
 class UserData:
@@ -69,6 +62,7 @@ class UserData:
     source_file: str
 
 class UserDatabase:
+    # ... (same as your original, unchanged)
     def __init__(self):
         self.files: Dict[str, Dict[str, UserData]] = {}
         self.users_by_rid: Dict[str, List[UserData]] = {}
@@ -300,7 +294,7 @@ class UserDatabase:
         return sum(len(users) for users in self.files.values())
 
 # --------------------------------------------
-# API CLASS (unchanged)
+# API CLASS
 # --------------------------------------------
 class Api:
     def __init__(self):
@@ -700,19 +694,24 @@ class Api:
         
         return {"success": True, "warning": "Browser-based scans are disabled. Only stored data was loaded."}
 
-# ------------------------------------------------------------
+# --------------------------------------------
+# CREATE FLASK APP AND API INSTANCE (AFTER CLASSES)
+# --------------------------------------------
+app = Flask(__name__, static_folder='static')
+api = Api()
+
+# --------------------------------------------
 # ROUTES
-# ------------------------------------------------------------
+# --------------------------------------------
 @app.route('/')
 def index():
     return send_from_directory('static', 'index.html')
 
 @app.route('/app')
 def app_ui():
-    # IMPORTANT: template name fixed to 'acq.html'
     return render_template('acq.html')
 
-# ---- File management (only get endpoints, no upload) ----
+# ---- File management ----
 @app.route('/api/get_loaded_files')
 def get_loaded_files():
     return jsonify(api.db.get_loaded_files())
@@ -725,12 +724,16 @@ def get_user_count():
 @app.route('/api/search_by_rid')
 def search_by_rid():
     rid = request.args.get('rid')
+    if rid is None:
+        return jsonify({'error': 'Missing rid parameter'}), 400
     results = api.db.search_by_rid(rid)
     return jsonify(api._format_results(results))
 
 @app.route('/api/search_by_username')
 def search_by_username():
     username = request.args.get('username')
+    if username is None:
+        return jsonify({'error': 'Missing username parameter'}), 400
     results = api.db.search_by_username(username)
     return jsonify(api._format_results(results))
 
@@ -753,6 +756,8 @@ def get_filter_options():
 def get_user_details():
     username = request.args.get('username')
     filename = request.args.get('filename')
+    if not username or not filename:
+        return jsonify({'error': 'Missing username or filename'}), 400
     user = api.db.files.get(filename, {}).get(username)
     if not user:
         return jsonify({'error': 'User not found'}), 404
@@ -767,6 +772,8 @@ def get_user_details():
 def get_deduced_friends():
     username = request.args.get('username')
     filename = request.args.get('filename')
+    if not username or not filename:
+        return jsonify({'error': 'Missing parameters'}), 400
     result = api.get_deduced_friends(username, filename)
     return jsonify(result)
 
@@ -777,6 +784,8 @@ def get_ego_graph():
     filename = request.args.get('filename')
     depth = int(request.args.get('depth', 2))
     root_rid = request.args.get('root_rid')
+    if not username or not filename:
+        return jsonify({'error': 'Missing username or filename'}), 400
     result = api.get_ego_graph(username, filename, depth, root_rid)
     return jsonify(result)
 
@@ -784,6 +793,8 @@ def get_ego_graph():
 def change_graph_root():
     data = request.json
     rid = data.get('rid')
+    if not rid:
+        return jsonify({'error': 'Missing rid'}), 400
     result = api.change_graph_root(rid)
     return jsonify(result)
 
@@ -795,6 +806,8 @@ def find_connection_paths():
     end_rid = data.get('end_rid')
     max_depth = data.get('max_depth', 5)
     max_paths = data.get('max_paths', 3)
+    if not start_rid or not end_rid:
+        return jsonify({'error': 'Missing start_rid or end_rid'}), 400
     result = api.find_connection_paths(start_rid, end_rid, max_depth, max_paths)
     return jsonify(result)
 
