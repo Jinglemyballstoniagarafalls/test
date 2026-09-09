@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Banana Suite</title>
+<style>
+/* ===== HOMEPAGE STYLES (from scrVi) ===== */
+:root{
+  --bg:#111214; --bg2:#1a1b1e; --panel:#1e1f22; --border:#2b2c2f;
+  --text:#e7e7e8; --sub:#8b8d92; --accent:#ffffff; --hover:#232427;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;}
+
+#homepage {
+  position:fixed; top:0; left:0; width:100%; height:100%;
+  background-image: url('/static/bkg.png'), url('/static/bkg.png');
+  background-size: auto 100%, auto 100%;
+  background-repeat: repeat-x, repeat-x;
+  background-position: 0 0, 6688px 0;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  text-align:center; z-index:1000;
+  animation: panBackground 120s linear infinite;
+}
+#homepage::before {
+  content:'';
+  position:absolute; top:0; left:0; width:100%; height:100%;
+  background: radial-gradient(ellipse at center, transparent 25%, rgba(0,0,0,0.85) 100%);
+  pointer-events:none;
+  z-index:1;
+}
+#homepage > * {
+  position:relative;
+  z-index:2;
+}
+
+#homepageText {
+  position:absolute;
+  top:50%; left:6%;
+  transform:translate(calc(44vw - 50%), -50%);
+  width:min(600px, 80%);
+  text-align:center;
+  will-change: transform;
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+              text-align 0s linear 0.6s;
+}
+#homepage.login-mode #homepageText {
+  transform:translate(0, -50%);
+  text-align:left;
+}
+#homepage.login-mode #homepageText .desc {
+  margin-left:0;
+  margin-right:0;
+}
+
+#homepage h1 {
+  font-size:4rem; font-weight:700; color:#fff;
+  margin:0 0 0.3em;
+  text-shadow: 0 4px 12px rgba(0,0,0,1), 0 0 50px rgba(0,0,0,0.95);
+  filter: drop-shadow(0 0 40px rgba(0,0,0,1));
+}
+#homepage .desc {
+  font-size:1.3rem; color:#f0f0f0;
+  max-width:600px; margin:0 auto 1.5em;
+  opacity:0.95;
+  text-shadow: 0 3px 10px rgba(0,0,0,1), 0 0 40px rgba(0,0,0,0.9);
+  filter: drop-shadow(0 0 30px rgba(0,0,0,0.9));
+}
+#homepage button {
+  padding:14px 40px; font-size:1.2rem; background:rgba(30,31,34,0.85);
+  border:1px solid var(--border); color:var(--text); border-radius:8px;
+  cursor:pointer; backdrop-filter:blur(4px); transition:0.3s;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+}
+#homepage button:hover { background:var(--hover); }
+
+#loginPanel {
+  position:absolute;
+  top:50%; right:6%;
+  transform:translate(24px,-50%);
+  width:min(280px, 80%);
+  display:flex; flex-direction:column; gap:14px;
+  opacity:0; pointer-events:none;
+  will-change: transform, opacity;
+  transition: opacity 0.45s ease 0.3s,
+              transform 0.45s cubic-bezier(0.22, 1, 0.36, 1) 0.3s;
+}
+#homepage.login-mode #loginPanel {
+  opacity:1; pointer-events:auto;
+  transform:translate(0,-50%);
+}
+#loginPanel input[type="password"] {
+  padding:12px 16px; font-size:1rem;
+  background:rgba(30,31,34,0.85);
+  border:1px solid var(--border); color:var(--text);
+  border-radius:8px; outline:none;
+  backdrop-filter:blur(4px);
+  text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+}
+#loginPanel input[type="password"]:focus { border-color:#666; }
+#loginPanel #loginError {
+  min-height:1.2em; font-size:0.9rem; color:#ff6b6b;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.6);
+}
+
+@keyframes panBackground {
+  0% { background-position: 0 0, 6688px 0; }
+  100% { background-position: -6688px 0, 0 0; }
+}
+
+/* ===== SERVICES PAGE ===== */
+#services-page {
+  display: none;
+  position: fixed;
+  top:0; left:0; width:100%; height:100%;
+  background: var(--bg);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+#services-page.active { display: flex; }
+.services-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 30px;
+  padding: 40px;
+  max-width: 800px;
+  width: 100%;
+}
+.service-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 30px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s;
+  color: var(--text);
+  text-decoration: none;
+}
+.service-card:hover {
+  background: var(--hover);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+}
+.service-card .icon { font-size: 48px; margin-bottom: 12px; }
+.service-card .name { font-size: 18px; font-weight: 600; }
+.service-card .desc { font-size: 13px; color: var(--sub); margin-top: 6px; }
+.services-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 20px;
+  text-align: center;
+  letter-spacing: 1px;
+}
+.services-sub {
+  color: var(--sub);
+  font-size: 16px;
+  margin-bottom: 30px;
+}
+</style>
+</head>
+<body>
+
+<!-- HOMEPAGE -->
+<div id="homepage">
+  <div id="homepageText">
+    <h1>בָּנָנָה</h1>
+    <div class="desc">AI-Assisted analysis and information gathering suite.<br>sherut@mops.gov.il <br>+972 53 460 1693</div>
+    <button id="homepageLoginBtn">sign in?</button>
+  </div>
+  <div id="loginPanel">
+    <input type="password" id="loginPasswordInput" placeholder="Password" autocomplete="current-password">
+    <button id="authenticateBtn">Authenticate</button>
+    <div id="loginError"></div>
+  </div>
+</div>
+
+<!-- SERVICES PAGE -->
+<div id="services-page">
+  <div class="services-title">Available Services</div>
+  <div class="services-sub">Select a tool to begin</div>
+  <div class="services-grid">
+    <div class="service-card" id="service-acquaintance">
+      <div class="icon">🕶️</div>
+      <div class="name">Acquaintance</div>
+      <div class="desc">Social graph analysis &amp; message viewer</div>
+    </div>
+    <!-- Add more services here later -->
+  </div>
+</div>
+
+<script>
+// ===== HOMEPAGE LOGIC =====
+const HARDCODED_PASSWORD = "zen";
+
+function showLoginPanel() {
+  document.getElementById('homepage').classList.add('login-mode');
+  setTimeout(()=> document.getElementById('loginPasswordInput').focus(), 350);
+}
+
+function attemptLogin() {
+  const input = document.getElementById('loginPasswordInput');
+  const errorDiv = document.getElementById('loginError');
+  if(input.value === HARDCODED_PASSWORD) {
+    errorDiv.textContent = '';
+    enterDashboard();
+  } else {
+    errorDiv.textContent = 'Incorrect password';
+    input.value = '';
+    input.focus();
+  }
+}
+
+function enterDashboard() {
+  document.getElementById('homepage').style.display = 'none';
+  document.getElementById('services-page').classList.add('active');
+}
+
+// ===== SERVICES -> ACQUAINTANCE =====
+document.getElementById('service-acquaintance').addEventListener('click', function() {
+  // Redirect to the actual Acquaintance app
+  window.location.href = '/app';
+});
+
+// ===== EVENT LISTENERS =====
+document.getElementById('homepageLoginBtn').addEventListener('click', showLoginPanel);
+document.getElementById('authenticateBtn').addEventListener('click', attemptLogin);
+document.getElementById('loginPasswordInput').addEventListener('keydown', (e) => {
+  if(e.key === 'Enter') attemptLogin();
+});
+</script>
+</body>
+</html>
