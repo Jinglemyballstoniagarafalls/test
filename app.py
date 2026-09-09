@@ -2,7 +2,6 @@ import os
 import json
 import time
 import sys
-import argparse
 import shutil
 from collections import deque
 from datetime import datetime
@@ -13,7 +12,7 @@ import requests
 from flask import Flask, request, jsonify
 
 # --------------------------------------------
-# HELPER FUNCTIONS (copied from your Viewer.py)
+# HELPER FUNCTIONS (same as before)
 # --------------------------------------------
 class Colors:
     HEADER = '\033[95m'
@@ -54,7 +53,7 @@ def atomic_save(data, filepath):
     os.replace(temp_path, filepath)
 
 # --------------------------------------------
-# UserData & UserDatabase (copied from your Viewer.py)
+# UserData & UserDatabase (unchanged)
 # --------------------------------------------
 @dataclass
 class UserData:
@@ -295,7 +294,7 @@ class UserDatabase:
         return sum(len(users) for users in self.files.values())
 
 # --------------------------------------------
-# API CLASS (copied from your Viewer.py, but stubbed browser/scanner parts)
+# API CLASS (unchanged, but we load file on init)
 # --------------------------------------------
 class Api:
     def __init__(self):
@@ -306,6 +305,15 @@ class Api:
             "sc_cache": None,
             "career_stats": None
         }
+        # Automatically load users.json if present
+        if os.path.exists('users.json'):
+            print("[STARTUP] Loading users.json...")
+            if self.db.load_file('users.json'):
+                print(f"[STARTUP] Loaded {self.db.get_user_count()} users.")
+            else:
+                print("[STARTUP] Failed to load users.json")
+        else:
+            print("[STARTUP] users.json not found. Please add it to the repo.")
 
     def _format_results(self, results: Dict[str, List[UserData]]) -> Dict[str, Any]:
         formatted = {}
@@ -680,7 +688,6 @@ class Api:
             "source_file": stored_user.source_file
         }
 
-        # All browser-based scans are disabled in web version
         self.advanced_results["sc_api"] = {"error": "sc-api requires browser automation, not available in web version."}
         self.advanced_results["sc_cache"] = {"error": "sc-cache requires browser automation, not available in web version."}
         self.advanced_results["career_stats"] = {"error": "Career stats require browser automation, not available in web version."}
@@ -688,7 +695,7 @@ class Api:
         return {"success": True, "warning": "Browser-based scans are disabled. Only stored data was loaded."}
 
 # --------------------------------------------
-# HTML UI (modified to use fetch instead of pywebview)
+# HTML UI (removed upload button, added auto-load message)
 # --------------------------------------------
 def create_html():
     return """
@@ -1008,11 +1015,6 @@ def create_html():
             align-items: center;
             gap: 8px;
         }
-        .sidebar-nav .tab-btn.divider-top {
-            border-top: 2px solid var(--border);
-            padding-top: 12px;
-            margin-top: 8px;
-        }   
         .panel-title::before {
             content: '';
             width: 6px;
@@ -1368,13 +1370,10 @@ def create_html():
     <div class="main">
         <div class="main-header">
             <div class="file-info">
-                <span id="loadedFiles">No files loaded</span>
+                <span id="loadedFiles">Loading...</span>
                 <span class="total-users" id="totalUsers">—</span>
             </div>
-            <div>
-                <input type="file" id="fileInput" multiple accept=".json" style="display:none">
-                <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">Load Files</button>
-            </div>
+            <!-- No upload button -->
         </div>
 
         <!-- Viewer Tab -->
@@ -1400,7 +1399,7 @@ def create_html():
                     <span class="filter-status" id="filterStatus"></span>
                 </div>
                 <div class="file-tags" id="fileTags">
-                    <span class="empty-state">No files loaded. Click "Load Files" to begin.</span>
+                    <span class="empty-state">No file loaded.</span>
                 </div>
             </div>
             <div class="results-wrapper">
@@ -1552,29 +1551,7 @@ def create_html():
         let pathfinderSigma = null;
         let pathfinderGraph = null;
 
-        // ---------- File management ----------
-        document.getElementById('fileInput').addEventListener('change', async function(e) {
-            const formData = new FormData();
-            for (const file of this.files) {
-                formData.append('files', file);
-            }
-            showLoading();
-            try {
-                const response = await fetch('/api/upload', { method: 'POST', body: formData });
-                const files = await response.json();
-                if (files && files.length) {
-                    showToast(`Loaded ${files.length} file(s)`);
-                    await updateFileList();
-                    await loadFilterOptions();
-                    const countResp = await fetch('/api/get_user_count');
-                    const count = await countResp.json();
-                    document.getElementById('totalUsers').textContent = `${count.toLocaleString()} users loaded`;
-                }
-            } catch(e) { showToast('Error loading files', 'error'); }
-            this.value = '';
-            hideLoading();
-        });
-
+        // ---------- File management (auto-load) ----------
         async function updateFileList() {
             try {
                 const response = await fetch('/api/get_loaded_files');
@@ -1582,33 +1559,22 @@ def create_html():
                 const container = document.getElementById('fileTags');
                 const fileCount = document.getElementById('loadedFiles');
                 if (currentFiles.length === 0) {
-                    container.innerHTML = '<span class="empty-state">No files loaded. Click "Load Files" to begin.</span>';
-                    fileCount.textContent = 'No files loaded';
+                    container.innerHTML = '<span class="empty-state">No file loaded. Make sure users.json is in the repo.</span>';
+                    fileCount.textContent = 'No file loaded';
                     document.getElementById('totalUsers').textContent = '—';
                 } else {
                     fileCount.textContent = `${currentFiles.length} file(s) loaded`;
                     container.innerHTML = currentFiles.map(file => `
                         <div class="file-tag">
                             <span>${escapeHtml(file)}</span>
-                            <span class="remove" onclick="unloadFile('${escapeHtml(file)}')">&times;</span>
                         </div>
                     `).join('');
                 }
-            } catch(e) { console.error(e); }
-        }
-
-        async function unloadFile(filename) {
-            try {
-                await fetch('/api/unload_file', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({filename}) });
-                showToast(`Unloaded ${filename}`);
-                await updateFileList();
-                await loadFilterOptions();
-                document.getElementById('resultsContainer').innerHTML = '';
-                document.getElementById('paginationControls').style.display = 'none';
+                // Get user count
                 const countResp = await fetch('/api/get_user_count');
                 const count = await countResp.json();
-                document.getElementById('totalUsers').textContent = count > 0 ? `${count.toLocaleString()} users loaded` : '—';
-            } catch(e) { showToast('Error unloading file', 'error'); }
+                document.getElementById('totalUsers').textContent = `${count.toLocaleString()} users loaded`;
+            } catch(e) { console.error(e); }
         }
 
         // ---------- Filter options ----------
@@ -1841,7 +1807,7 @@ def create_html():
         async function renderGraph() {
             const username = document.getElementById('graphSearchInput').value.trim();
             if (!username) { showToast('Enter a username or RID.', 'error'); return; }
-            if (!currentFiles.length) { showToast('Load some files first.', 'error'); return; }
+            if (!currentFiles.length) { showToast('No file loaded. Make sure users.json is in the repo.', 'error'); return; }
             if (sigmaInstance) { sigmaInstance.kill(); sigmaInstance = null; graphInstance = null; }
             if (pathfinderSigma) { pathfinderSigma.kill(); pathfinderSigma = null; pathfinderGraph = null; clearPathfinder(); }
 
@@ -2046,7 +2012,7 @@ def create_html():
             const maxDepth = parseInt(document.getElementById('pathDepthSlider').value);
             const maxPaths = parseInt(document.getElementById('pathMaxPathsSlider').value);
             if (!startInput || !endInput) { showToast('Enter both users.', 'error'); return; }
-            if (!currentFiles.length) { showToast('Load some files first.', 'error'); return; }
+            if (!currentFiles.length) { showToast('No file loaded. Make sure users.json is in the repo.', 'error'); return; }
             if (sigmaInstance) { sigmaInstance.kill(); sigmaInstance = null; graphInstance = null; clearGraph(); }
             showLoading();
             document.getElementById('pathfinderStatus').textContent = 'Searching for connections...';
@@ -2227,19 +2193,7 @@ api = Api()
 def index():
     return create_html()
 
-# ---- File management ----
-@app.route('/api/upload', methods=['POST'])
-def upload_files():
-    files = request.files.getlist('files')
-    loaded = []
-    for f in files:
-        temp_path = f'/tmp/{f.filename}'
-        f.save(temp_path)
-        if api.db.load_file(temp_path):
-            loaded.append(f.filename)
-        os.remove(temp_path)
-    return jsonify(loaded)
-
+# ---- File management (only get endpoints, no upload) ----
 @app.route('/api/get_loaded_files')
 def get_loaded_files():
     return jsonify(api.db.get_loaded_files())
@@ -2247,13 +2201,6 @@ def get_loaded_files():
 @app.route('/api/get_user_count')
 def get_user_count():
     return jsonify(api.db.get_user_count())
-
-@app.route('/api/unload_file', methods=['POST'])
-def unload_file():
-    data = request.json
-    filename = data.get('filename')
-    api.db.unload_file(filename)
-    return jsonify({'status': 'ok'})
 
 # ---- Search ----
 @app.route('/api/search_by_rid')
