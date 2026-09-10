@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>scrVi</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+const MODEL_DATA = {{ models_json | safe }};
+</script>
+<style>
+  :root{
+    --bg:#111214; --bg2:#1a1b1e; --panel:#1e1f22; --border:#2b2c2f;
+    --text:#e7e7e8; --sub:#8b8d92; --accent:#ffffff; --hover:#232427;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;}
+
+  /* MAIN UI */
+  #top{display:flex;gap:10px;align-items:center;padding:14px 18px;background:var(--bg2);border-bottom:1px solid var(--border);flex-wrap:wrap;}
+  #top h1{font-size:15px;font-weight:600;margin:0;color:var(--accent);white-space:nowrap;}
+
+  #search{flex:1;min-width:150px;background:var(--panel);border:1px solid var(--border);color:var(--text);
+    padding:8px 12px;border-radius:6px;font-size:13px;outline:none;}
+  #search:focus{border-color:#555;}
+
+  select{appearance:none; -webkit-appearance:none; background:var(--panel); color:var(--text);
+    border:1px solid var(--border); border-radius:6px; padding:8px 32px 8px 12px;
+    font-size:13px; cursor:pointer; outline:none; min-width:130px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%238b8d92'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 12px center; background-size:10px 6px;}
+  select:hover{border-color:#555;}
+  select:focus{border-color:#777;}
+  select option{background:var(--bg2); color:var(--text);}
+
+  .text-input{background:var(--panel);border:1px solid var(--border);color:var(--text);
+    padding:7px 10px;border-radius:6px;font-size:13px;outline:none;}
+  .text-input:focus{border-color:#555;}
+
+  #stats{padding:8px 18px;font-size:12px;color:var(--sub);border-bottom:1px solid var(--border);background:var(--bg);}
+
+  #list-container{overflow-y:auto;height:calc(100vh - 92px);padding:6px 0;}
+  #chart-container{display:none;height:calc(100vh - 92px);padding:20px;align-items:center;justify-content:center;flex-direction:column;}
+  #chart-container canvas{max-height:calc(100% - 80px);max-width:100%;}
+
+  /* AI */
+  #ai-container{display:none;height:calc(100vh - 92px);padding:20px;flex-direction:column;overflow-y:auto;}
+  #ai-container .controls{
+    display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap; align-items:center;
+    flex-shrink:0;
+  }
+  #ai-container .controls select{ padding:6px 28px 6px 10px; font-size:13px; min-width:140px; }
+  #ai-container .controls button{
+    padding:6px 18px; background:var(--panel); border:1px solid var(--border);
+    color:var(--text); border-radius:6px; cursor:pointer; font-size:13px;
+  }
+  #ai-container .controls button:hover{background:var(--hover);}
+  #ai-container .keys-section {
+    background:var(--bg2); border:1px solid var(--border); border-radius:8px;
+    padding:10px; margin-bottom:12px; display:flex; flex-direction:column; gap:8px; flex-shrink:0;
+  }
+  #ai-container .keys-section .key-row{
+    display:flex; gap:8px; align-items:center; flex-wrap:wrap;
+  }
+  #ai-container .keys-section .key-row label{
+    min-width:130px; color:var(--sub); font-size:12px;
+  }
+  #ai-container .keys-section .key-row input{
+    flex:1; min-width:200px;
+  }
+  #ai-container .keys-section .keys-actions{
+    display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+  }
+  #keysStatus{color:var(--sub);font-size:12px;}
+
+  #ai-container .placeholder{
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    flex:1; gap:20px; color:var(--sub);
+  }
+  #ai-container .placeholder button{
+    padding:10px 30px; background:var(--panel); border:1px solid var(--border);
+    color:var(--text); border-radius:6px; cursor:pointer; font-size:14px;
+  }
+  #ai-container .placeholder button:hover{background:var(--hover);}
+  #ai-container .placeholder .spinner{
+    width:40px; height:40px; border:4px solid var(--border);
+    border-top-color:var(--accent); border-radius:50%;
+    animation:spin 0.8s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  #ai-container .results{
+    font-size:14px; line-height:1.6; color:var(--text);
+    padding:15px; background:var(--bg2); border-radius:8px;
+    border:1px solid var(--border); flex:1; overflow-y:auto;
+    word-wrap:break-word; display:none;
+  }
+  #ai-container .results .clear-btn{
+    background:var(--panel); border:1px solid var(--border); color:var(--sub);
+    padding:4px 12px; border-radius:4px; cursor:pointer; font-size:12px;
+    float:right; margin-bottom:8px;
+  }
+  #ai-container .results .clear-btn:hover{background:var(--hover);}
+  #ai-container .results h1, #ai-container .results h2, #ai-container .results h3 {
+    color:var(--accent); margin:0.8em 0 0.3em;
+  }
+  #ai-container .results ul, #ai-container .results ol { padding-left:1.5em; margin:0.5em 0; }
+  #ai-container .results li { margin:0.2em 0; }
+  #ai-container .results strong { color:var(--accent); }
+  #ai-container .results p { margin:0.5em 0; }
+  #ai-container .results code { background:var(--panel); padding:0.2em 0.4em; border-radius:3px; font-size:0.9em; }
+  #ai-container .results pre { background:var(--panel); padding:10px; border-radius:6px; overflow-x:auto; }
+
+  /* SCRAPER */
+  #scraper-container{
+    display:none; height:calc(100vh - 92px); padding:20px;
+    flex-direction:column; overflow-y:auto;
+  }
+  #scraper-container .row{
+    display:flex; gap:10px; margin-bottom:10px; align-items:center; flex-wrap:wrap;
+  }
+  #scraper-container .row label{
+    min-width:80px; color:var(--sub); font-size:13px;
+  }
+  #scraper-container .row input, #scraper-container .row select{
+    flex:1; min-width:200px;
+    background:var(--panel); border:1px solid var(--border);
+    color:var(--text); padding:6px 10px; border-radius:6px;
+    font-size:13px; outline:none;
+  }
+  #scraper-container .row input:focus, #scraper-container .row select:focus{ border-color:#555; }
+  #scraper-container .row button{
+    padding:6px 14px; background:var(--panel); border:1px solid var(--border);
+    color:var(--text); border-radius:6px; cursor:pointer; font-size:13px;
+  }
+  #scraper-container .row button:hover{background:var(--hover);}
+  #scraper-container .row button.danger{color:#ff6b6b;}
+  #scraper-container .row button.danger:hover{background:#2a1a1a;}
+  #scraper-container .log-area{
+    flex:1; background:var(--bg2); border:1px solid var(--border);
+    border-radius:6px; padding:10px; overflow-y:auto;
+    font-family:monospace; font-size:13px; white-space:pre-wrap;
+    color:var(--sub); min-height:200px;
+  }
+  #scraper-container .log-area .log-entry{ margin:2px 0; }
+  #scraper-container .log-area .log-error{color:#ff6b6b;}
+  #scraper-container .log-area .log-success{color:#69db7c;}
+  #scraper-container .log-area .log-info{color:var(--sub);}
+
+  #chart-controls{display:flex;gap:12px;margin-bottom:10px;align-items:center;flex-wrap:wrap;justify-content:center;}
+  #chart-controls button{background:var(--panel);border:1px solid var(--border);color:var(--sub);
+    padding:5px 14px;border-radius:4px;cursor:pointer;font-size:12px;transition:0.2s;}
+  #chart-controls button.active{background:var(--hover);border-color:#555;color:var(--text);}
+  #chart-controls button:hover{background:var(--hover);}
+  #chart-controls select{min-width:100px;padding:5px 24px 5px 10px;font-size:12px;}
+
+  .row{padding:10px 18px;border-bottom:1px solid var(--border);cursor:default;}
+  .row:hover{background:var(--hover);}
+  .meta{font-size:11px;color:var(--sub);margin-bottom:3px;display:flex;gap:10px;user-select:none;}
+  .content{
+    font-size:13.5px;line-height:1.4;white-space:pre-wrap;word-break:break-word;
+    user-select:text; -webkit-user-select:text; cursor:text;
+  }
+  .content::selection{background:#4a6b9f; color:#fff;}
+  .tag{background:var(--panel);border:1px solid var(--border);border-radius:4px;padding:1px 6px;}
+  .placeholder{display:flex;align-items:center;justify-content:center;height:100%;color:var(--sub);font-size:16px;}
+  .view-btn{background:var(--panel);border:1px solid var(--border);color:var(--sub);
+    padding:6px 16px;border-radius:6px;cursor:pointer;font-size:13px;transition:0.2s;}
+  .view-btn.active{background:var(--hover);border-color:#555;color:var(--text);}
+  .view-btn:hover{background:var(--hover);}
+  #importBtn{background:var(--panel);border:1px solid var(--border);color:var(--text);
+    padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;}
+  #importBtn:hover{background:var(--hover);}
+  ::-webkit-scrollbar{width:9px;}
+  ::-webkit-scrollbar-thumb{background:#2f3033;border-radius:5px;}
+  ::-webkit-scrollbar-track{background:var(--bg);}
+</style>
+</head>
+<body>
+  <div id="mainUI">
+    <div id="top">
+      <h1 id="title">Shabak Suite || שירות הביטחון</h1>
+      <input id="search" placeholder="Search Messages...">
+      <select id="channelFilter"><option value="">All Channels</option></select>
+      <select id="sortSel">
+        <option value="new">Newest</option>
+        <option value="old">Oldest</option>
+        <option value="len">Length</option>
+      </select>
+      <button class="view-btn active" id="listBtn">📋 List</button>
+      <button class="view-btn" id="graphBtn">📊 Graph</button>
+      <button class="view-btn" id="aiBtn">🤖 AI</button>
+      <button class="view-btn" id="scraperBtn">🔍 Scraper</button>
+      <button id="importBtn">📂 Import JSON</button>
+      <input type="file" id="fileInput" accept=".json,application/json" style="display:none;">
+    </div>
+    <div id="stats"></div>
+    <div id="list-container"></div>
+    <div id="chart-container">
+      <div id="chart-controls">
+        <button id="hourlyTab" class="active">Hourly</button>
+        <button id="weekdayTab">Weekday Totals</button>
+        <select id="weekdayFilter">
+          <option value="-1">All days</option>
+          <option value="0">Sunday</option>
+          <option value="1">Monday</option>
+          <option value="2">Tuesday</option>
+          <option value="3">Wednesday</option>
+          <option value="4">Thursday</option>
+          <option value="5">Friday</option>
+          <option value="6">Saturday</option>
+        </select>
+      </div>
+      <canvas id="hourChart"></canvas>
+    </div>
+    <div id="ai-container">
+      <div class="keys-section">
+        <div class="key-row">
+          <label>Google AI API Key</label>
+          <input type="password" class="text-input" id="googleKeyInput" placeholder="AIza..." autocomplete="off">
+        </div>
+        <div class="key-row">
+          <label>OpenRouter API Key</label>
+          <input type="password" class="text-input" id="openrouterKeyInput" placeholder="sk-or-..." autocomplete="off">
+        </div>
+        <div class="keys-actions">
+          <button id="saveKeysBtn" style="padding:6px 18px;background:var(--panel);border:1px solid var(--border);color:var(--text);border-radius:6px;cursor:pointer;font-size:13px;">💾 Save Keys (local)</button>
+          <span id="keysStatus"></span>
+        </div>
+      </div>
+
+      <div class="controls">
+        <select id="providerSelect">
+          <option value="google">Google (Gemini)</option>
+          <option value="openrouter">OpenRouter</option>
+        </select>
+        <select id="modelSelect"></select>
+        <button id="analyzeBtn">🔍 Analyze</button>
+      </div>
+      <div class="placeholder" id="aiPlaceholder">
+        <div>Ready to analyze messages</div>
+      </div>
+      <div id="aiResults" class="results"></div>
+    </div>
+
+    <!-- SCRAPER -->
+    <div id="scraper-container">
+      <div class="row">
+        <label>Token</label>
+        <select id="tokenSelect" style="flex:0.5;min-width:150px;">
+          <option value="">-- Saved Tokens --</option>
+        </select>
+        <button id="addTokenBtn" title="Add new token">➕</button>
+        <button id="editTokenBtn" title="Edit selected token">✏️</button>
+        <button id="deleteTokenBtn" title="Delete selected token">🗑️</button>
+        <button id="copyTokenBtn" title="Copy token to clipboard">📋</button>
+        <input type="text" id="tokenInput" placeholder="Enter token..." style="flex:2;min-width:200px;">
+      </div>
+      <div class="row">
+        <label>Guild ID</label>
+        <input type="text" id="guildInput" placeholder="Guild ID...">
+      </div>
+      <div class="row">
+        <label>User ID</label>
+        <input type="text" id="userInput" placeholder="User ID...">
+      </div>
+      <div class="row">
+        <button id="startScrapeBtn">▶ Start Scrape</button>
+        <button id="stopScrapeBtn" class="danger" style="display:none;">⏹ Stop</button>
+        <span id="scrapeStatus" style="color:var(--sub);font-size:13px;"></span>
+      </div>
+      <div class="log-area" id="scrapeLog">
+        <div class="log-entry log-info">Ready to scrape.</div>
+      </div>
+      <div class="row">
+        <button id="loadScrapedBtn" style="display:none;">📂 Load into Viewer</button>
+        <button id="downloadScrapedBtn" style="display:none;">💾 Download JSON</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+// =====================================================
+// Persistent storage (localStorage — survives reloads)
+// =====================================================
+const LS_TOKENS = 'scrvi_tokens_v1';
+const LS_KEYS   = 'scrvi_api_keys_v1';
+
+function getTokens(){ try { return JSON.parse(localStorage.getItem(LS_TOKENS) || '{}'); } catch(e){ return {}; } }
+function setTokens(t){ localStorage.setItem(LS_TOKENS, JSON.stringify(t)); }
+function getKeys(){ try { return JSON.parse(localStorage.getItem(LS_KEYS) || '{}'); } catch(e){ return {}; } }
+function setKeys(k){ localStorage.setItem(LS_KEYS, JSON.stringify(k)); }
+
+// =====================================================
+// State
+// =====================================================
+let ALL = [];
+let chartInstance = null;
+let viewMode = 'list';
+let chartType = 'hourly';
+let selectedWeekday = -1;
+let aiResponse = null;
+let currentJobId = null;
+let scrapePollInterval = null;
+
+// =====================================================
+// Token management (localStorage)
+// =====================================================
+function refreshTokenSelect(){
+  const tokens = getTokens();
+  const sel = document.getElementById('tokenSelect');
+  const currentVal = sel.value;
+  sel.innerHTML = '<option value="">-- Saved Tokens --</option>';
+  Object.keys(tokens).forEach(name=>{
+    const opt = document.createElement('option');
+    opt.value = name; opt.textContent = name;
+    sel.appendChild(opt);
+  });
+  if (currentVal && tokens[currentVal]) sel.value = currentVal;
+}
+
+document.getElementById('tokenSelect').addEventListener('change', function(){
+  const tokens = getTokens();
+  if (this.value && tokens[this.value]) {
+    document.getElementById('tokenInput').value = tokens[this.value];
+  }
+});
+
+document.getElementById('addTokenBtn').addEventListener('click', ()=>{
+  const name = prompt("Enter a name for this token:");
+  if (!name) return;
+  const token = prompt("Enter the token string:");
+  if (token === null) return;
+  const tokens = getTokens();
+  tokens[name] = token;
+  setTokens(tokens);
+  refreshTokenSelect();
+  document.getElementById('tokenSelect').value = name;
+  document.getElementById('tokenInput').value = token;
+});
+
+document.getElementById('editTokenBtn').addEventListener('click', ()=>{
+  const name = document.getElementById('tokenSelect').value;
+  if (!name) { alert("Select a token first."); return; }
+  const tokens = getTokens();
+  const oldToken = tokens[name];
+  const newName = prompt("Edit name:", name);
+  if (newName === null) return;
+  const newToken = prompt("Edit token value:", oldToken);
+  if (newToken === null) return;
+  delete tokens[name];
+  tokens[newName] = newToken;
+  setTokens(tokens);
+  refreshTokenSelect();
+  document.getElementById('tokenSelect').value = newName;
+});
+
+document.getElementById('deleteTokenBtn').addEventListener('click', ()=>{
+  const name = document.getElementById('tokenSelect').value;
+  if (!name) { alert("Select a token first."); return; }
+  if (!confirm(`Delete token "${name}"?`)) return;
+  const tokens = getTokens();
+  delete tokens[name];
+  setTokens(tokens);
+  refreshTokenSelect();
+  document.getElementById('tokenInput').value = '';
+});
+
+document.getElementById('copyTokenBtn').addEventListener('click', ()=>{
+  const input = document.getElementById('tokenInput');
+  if (!input.value) return;
+  navigator.clipboard.writeText(input.value).then(()=>{
+    alert("Token copied to clipboard!");
+  }).catch(()=>{ input.select(); document.execCommand('copy'); });
+});
+
+// =====================================================
+// API key management (localStorage)
+// =====================================================
+function loadKeysIntoInputs(){
+  const keys = getKeys();
+  if (keys.google) document.getElementById('googleKeyInput').value = keys.google;
+  if (keys.openrouter) document.getElementById('openrouterKeyInput').value = keys.openrouter;
+}
+
+document.getElementById('saveKeysBtn').addEventListener('click', ()=>{
+  const keys = {
+    google:     document.getElementById('googleKeyInput').value.trim(),
+    openrouter: document.getElementById('openrouterKeyInput').value.trim(),
+  };
+  setKeys(keys);
+  const status = document.getElementById('keysStatus');
+  status.textContent = '✓ Saved locally.';
+  setTimeout(()=> status.textContent = '', 2000);
+});
+
+// =====================================================
+// Scraper
+// =====================================================
+function addLog(msg, type='info'){
+  const logDiv = document.getElementById('scrapeLog');
+  const entry = document.createElement('div');
+  entry.className = `log-entry log-${type}`;
+  entry.textContent = msg;
+  logDiv.appendChild(entry);
+  logDiv.scrollTop = logDiv.scrollHeight;
+}
+
+async function startScrape(){
+  const token = document.getElementById('tokenInput').value.trim();
+  const guild = document.getElementById('guildInput').value.trim();
+  const user  = document.getElementById('userInput').value.trim();
+  if (!token || !guild || !user) { alert("Please fill in all fields."); return; }
+
+  document.getElementById('startScrapeBtn').disabled = true;
+  document.getElementById('stopScrapeBtn').style.display = 'inline-block';
+  document.getElementById('scrapeStatus').textContent = '⏳ Starting...';
+  updateScrapeButtons(null, false);
+  addLog("🚀 Starting scrape...", 'info');
+
+  try {
+    const resp = await fetch('/api/scrvi/start_scrape', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({token, guild_id: guild, user_id: user}),
+    });
+    const result = await resp.json();
+    if (resp.ok && result.job_id) {
+      currentJobId = result.job_id;
+      document.getElementById('scrapeStatus').textContent = '🔄 Running...';
+      if (scrapePollInterval) clearInterval(scrapePollInterval);
+      scrapePollInterval = setInterval(pollScrapeStatus, 1000);
+    } else {
+      addLog("❌ Failed to start scrape: " + (result.error || 'unknown'), 'error');
+      document.getElementById('scrapeStatus').textContent = '❌ Failed';
+      document.getElementById('startScrapeBtn').disabled = false;
+      document.getElementById('stopScrapeBtn').style.display = 'none';
+    }
+  } catch(e){
+    addLog("❌ Error: " + e.message, 'error');
+    document.getElementById('scrapeStatus').textContent = '❌ Error';
+    document.getElementById('startScrapeBtn').disabled = false;
+    document.getElementById('stopScrapeBtn').style.display = 'none';
+  }
+}
+
+async function stopScrape(){
+  if (!currentJobId) return;
+  if (!confirm("Stop the running scrape? (Progress will be saved)")) return;
+  addLog("⏹ Stopping scrape...", 'info');
+  try {
+    await fetch('/api/scrvi/stop_scrape', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({job_id: currentJobId}),
+    });
+    document.getElementById('scrapeStatus').textContent = '⏹ Stopping...';
+  } catch(e){
+    addLog("❌ Error stopping: " + e.message, 'error');
+  }
+}
+
+document.getElementById('startScrapeBtn').addEventListener('click', startScrape);
+document.getElementById('stopScrapeBtn').addEventListener('click', stopScrape);
+
+async function pollScrapeStatus(){
+  if (!currentJobId) return;
+  try {
+    const resp = await fetch('/api/scrvi/scrape_status/' + encodeURIComponent(currentJobId));
+    if (!resp.ok) return;
+    const status = await resp.json();
+
+    if (status.logs && status.logs.length > 0) {
+      const logDiv = document.getElementById('scrapeLog');
+      logDiv.innerHTML = '';
+      status.logs.forEach(msg=>{
+        const type = msg.includes('❌') ? 'error' : (msg.includes('✅') ? 'success' : 'info');
+        addLog(msg, type);
+      });
+    }
+
+    if (status.progress > 0) {
+      updateScrapeButtons(currentJobId, true);
+    }
+
+    if (status.done) {
+      clearInterval(scrapePollInterval);
+      scrapePollInterval = null;
+      document.getElementById('startScrapeBtn').disabled = false;
+      document.getElementById('stopScrapeBtn').style.display = 'none';
+      if (status.error && status.progress === 0) {
+        document.getElementById('scrapeStatus').textContent = '❌ Error';
+        addLog("❌ Scrape failed: " + status.error, 'error');
+      } else {
+        const label = status.stopped ? '⏹ Stopped' : (status.error ? '⚠️ Partial' : '✅ Done');
+        document.getElementById('scrapeStatus').textContent =
+          `${label} — ${status.progress} message(s) ready to download`;
+        if (status.error) addLog("⚠️ " + status.error, 'error');
+      }
+    } else {
+      document.getElementById('scrapeStatus').textContent = `🔄 Scraping... ${status.progress}/${status.total}`;
+    }
+  } catch(e){ console.error("Poll error:", e); }
+}
+
+async function fetchScrapeData(jobId){
+  const resp = await fetch('/api/scrvi/scrape_data/' + encodeURIComponent(jobId));
+  if (!resp.ok) {
+    const err = await resp.json().catch(()=>({}));
+    throw new Error(err.error || ('HTTP ' + resp.status));
+  }
+  return resp.json();
+}
+
+function updateScrapeButtons(jobId, hasData){
+  const ld = document.getElementById('loadScrapedBtn');
+  const dl = document.getElementById('downloadScrapedBtn');
+  if (hasData && jobId) {
+    ld.style.display = 'inline-block';
+    dl.style.display = 'inline-block';
+    ld.dataset.jobId = jobId;
+    dl.dataset.jobId = jobId;
+  } else {
+    ld.style.display = 'none';
+    dl.style.display = 'none';
+    delete ld.dataset.jobId;
+    delete dl.dataset.jobId;
+  }
+}
+
+document.getElementById('loadScrapedBtn').addEventListener('click', async function(){
+  const jobId = this.dataset.jobId;
+  if (!jobId) return;
+  try {
+    const data = await fetchScrapeData(jobId);
+    updateUI(data);
+    setView('list');
+  } catch(e){ alert("Error loading scrape: " + e.message); }
+});
+
+document.getElementById('downloadScrapedBtn').addEventListener('click', async function(){
+  const jobId = this.dataset.jobId;
+  if (!jobId) return;
+  try {
+    const data = await fetchScrapeData(jobId);
+    const filename = data.suggested_filename || 'scrape.json';
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(()=> URL.revokeObjectURL(url), 0);
+  } catch(e){ alert("Error downloading scrape: " + e.message); }
+});
+
+// =====================================================
+// Provider / Model
+// =====================================================
+function populateModels(provider){
+  const modelSelect = document.getElementById('modelSelect');
+  const models = MODEL_DATA[provider] || [];
+  modelSelect.innerHTML = '';
+  models.forEach(m=>{
+    const opt = document.createElement('option');
+    opt.value = m.id; opt.textContent = m.name;
+    modelSelect.appendChild(opt);
+  });
+  if (models.length === 0) {
+    const opt = document.createElement('option');
+    opt.value = ''; opt.textContent = 'No models';
+    modelSelect.appendChild(opt);
+  }
+}
+document.getElementById('providerSelect').addEventListener('change', function(){
+  populateModels(this.value);
+});
+
+// =====================================================
+// View utilities
+// =====================================================
+function fmtTime(ts){
+  if(!ts) return '';
+  const d = new Date(ts);
+  const pad = (n) => String(n).padStart(2, '0');
+  return d.getUTCFullYear() + '-' + pad(d.getUTCMonth()+1) + '-' + pad(d.getUTCDate()) +
+         ' ' + pad(d.getUTCHours()) + ':' + pad(d.getUTCMinutes()) + ' UTC';
+}
+function escapeHtml(s){
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+function getFilteredMessages(){
+  if(selectedWeekday === -1) return ALL;
+  return ALL.filter(m=>{
+    if(!m.timestamp) return false;
+    return new Date(m.timestamp).getUTCDay() === selectedWeekday;
+  });
+}
+function getHourCounts(messages){
+  const counts = new Array(24).fill(0);
+  messages.forEach(m=>{
+    if(m.timestamp) counts[new Date(m.timestamp).getUTCHours()]++;
+  });
+  return counts;
+}
+function getWeekdayCounts(messages){
+  const counts = new Array(7).fill(0);
+  messages.forEach(m=>{
+    if(m.timestamp) counts[new Date(m.timestamp).getUTCDay()]++;
+  });
+  return counts;
+}
+
+// =====================================================
+// List view
+// =====================================================
+function renderList(){
+  const q = document.getElementById('search').value.toLowerCase();
+  const ch = document.getElementById('channelFilter').value;
+  const sort = document.getElementById('sortSel').value;
+
+  let rows = ALL.filter(m=>{
+    if(ch && m.channel_id !== ch) return false;
+    if(q && !(m.content||'').toLowerCase().includes(q)) return false;
+    return true;
+  });
+
+  if(sort==='new') rows.sort((a,b)=> new Date(b.timestamp)-new Date(a.timestamp));
+  if(sort==='old') rows.sort((a,b)=> new Date(a.timestamp)-new Date(b.timestamp));
+  if(sort==='len') rows.sort((a,b)=> (b.content||'').length-(a.content||'').length);
+
+  document.getElementById('stats').textContent = `${rows.length} shown / ${ALL.length} total`;
+
+  const container = document.getElementById('list-container');
+  if(ALL.length === 0){
+    container.innerHTML = `<div class="placeholder">No messages loaded — click Import JSON to load a file, or run the scraper.</div>`;
+    return;
+  }
+  container.innerHTML = rows.map(m=>{
+    const extras = [];
+    if(m.attachments && m.attachments.length) extras.push(`<span class="tag">${m.attachments.length} attachment(s)</span>`);
+    if(m.embeds && m.embeds.length) extras.push(`<span class="tag">${m.embeds.length} embed(s)</span>`);
+    return `<div class="row">
+      <div class="meta"><span>${fmtTime(m.timestamp)}</span><span class="tag">${m.channel_id}</span>${extras.join('')}</div>
+      <div class="content">${escapeHtml(m.content||'')}</div>
+    </div>`;
+  }).join('');
+}
+
+// =====================================================
+// Chart view
+// =====================================================
+function buildChartData(type){
+  if(type === 'hourly'){
+    const filtered = getFilteredMessages();
+    const counts = getHourCounts(filtered);
+    const labels = Array.from({length:24}, (_,i)=>i+'h');
+    const dayLabel = selectedWeekday === -1 ? 'All days' : ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][selectedWeekday];
+    return { labels, data: counts, label: `Messages per hour (UTC) — ${dayLabel}` };
+  } else {
+    const counts = getWeekdayCounts(ALL);
+    const labels = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    return { labels, data: counts, label: 'Total messages per weekday (UTC)' };
+  }
+}
+
+function renderChart(){
+  const container = document.getElementById('chart-container');
+  const canvas = document.getElementById('hourChart');
+  if(ALL.length === 0){
+    const oldPlaceholder = container.querySelector('.placeholder');
+    if (oldPlaceholder) oldPlaceholder.remove();
+    container.insertAdjacentHTML('afterbegin', `<div class="placeholder">No data to graph — import a JSON file</div>`);
+    canvas.style.display = 'none';
+    if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+    return;
+  }
+  canvas.style.display = 'block';
+  const placeholder = container.querySelector('.placeholder');
+  if(placeholder) placeholder.remove();
+
+  const chartData = buildChartData(chartType);
+  if(chartInstance){ chartInstance.destroy(); chartInstance = null; }
+
+  chartInstance = new Chart(canvas.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: chartData.labels,
+      datasets: [{
+        label: chartData.label,
+        data: chartData.data,
+        backgroundColor: 'rgba(100, 149, 237, 0.8)',
+        borderColor: 'rgba(100, 149, 237, 1)',
+        borderWidth: 1,
+        borderRadius: 3,
+        barPercentage: 0.8,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: (ctx)=> ctx.parsed.y + ' messages' } }
+      },
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#8b8d92', font: { size: 11 } } },
+        y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' },
+             ticks: { color: '#8b8d92', font: { size: 11 }, stepSize: 1 } }
+      },
+      animation: { duration: 500 }
+    }
+  });
+}
+
+// =====================================================
+// AI view
+// =====================================================
+function renderAI(){
+  const placeholder = document.getElementById('aiPlaceholder');
+  const resultsDiv = document.getElementById('aiResults');
+  if(ALL.length === 0){
+    aiResponse = null;
+    placeholder.style.display = 'flex';
+    resultsDiv.style.display = 'none';
+    placeholder.innerHTML = '<div>No messages loaded — import a JSON file first.</div>';
+    return;
+  }
+  if(aiResponse){
+    placeholder.style.display = 'none';
+    resultsDiv.style.display = 'block';
+    resultsDiv.innerHTML = `
+      <div><button class="clear-btn" id="clearAI">✕ Clear</button></div>
+      <div style="flex:1;overflow-y:auto;">${marked.parse(aiResponse)}</div>
+    `;
+    document.getElementById('clearAI').addEventListener('click', clearAI);
+  } else {
+    placeholder.style.display = 'flex';
+    resultsDiv.style.display = 'none';
+    placeholder.innerHTML = `<div>Ready to analyze ${ALL.length} messages</div>`;
+  }
+}
+
+function clearAI(){ aiResponse = null; renderAI(); }
+
+function buildMessagesText(){
+  const lines = [];
+  let total = 0;
+  const LIMIT = 230000;
+  for(const m of ALL){
+    const ts = m.timestamp || 'unknown';
+    const content = m.content || '';
+    const line = `[${ts}] ${content}\n`;
+    lines.push(line);
+    total += line.length;
+    if (total > LIMIT) break;
+  }
+  if (total > LIMIT) lines.push("[... truncated due to length limit]\n");
+  return lines.join('');
+}
+
+function showAnalyzeError(msg){
+  const placeholder = document.getElementById('aiPlaceholder');
+  placeholder.style.display = 'flex';
+  document.getElementById('aiResults').style.display = 'none';
+  placeholder.innerHTML = `<div>${msg}</div><button id="analyzeRetryBtn">🔍 Retry</button>`;
+  document.getElementById('analyzeRetryBtn').addEventListener('click', runAnalysis);
+}
+
+async function runAnalysis(){
+  aiResponse = null;
+  renderAI();
+
+  const placeholder = document.getElementById('aiPlaceholder');
+  const resultsDiv = document.getElementById('aiResults');
+  const provider = document.getElementById('providerSelect').value;
+  const model = document.getElementById('modelSelect').value;
+  if(!model){ showAnalyzeError("Error: no model selected for this provider."); return; }
+
+  const keys = getKeys();
+  const apiKey = keys[provider] || '';
+  if(!apiKey){
+    showAnalyzeError(`Error: no API key saved for '${provider}'. Enter it in the keys section above.`);
+    return;
+  }
+
+  const messagesText = buildMessagesText();
+  if(!messagesText.trim()){ showAnalyzeError("Error: no messages to analyze."); return; }
+
+  placeholder.innerHTML = `
+    <div>Analyzing messages using ${provider} / ${model}...</div>
+    <div class="spinner"></div>
+  `;
+  resultsDiv.style.display = 'none';
+
+  try {
+    const resp = await fetch('/api/scrvi/analyze', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        provider, model_id: model,
+        api_key: apiKey,
+        messages_text: messagesText,
+      }),
+    });
+    const data = await resp.json();
+    if(data.success){
+      aiResponse = data.result;
+      renderAI();
+    } else {
+      showAnalyzeError("Error: " + (data.error || 'unknown error'));
+    }
+  } catch(e){
+    showAnalyzeError("Error: " + e.message);
+  }
+}
+
+// =====================================================
+// View switching
+// =====================================================
+function updateUI(data){
+  ALL = data.messages || [];
+  document.getElementById('title').textContent =
+    (data.user?.global_name || data.user?.username || 'messages') + ' — messages';
+  document.getElementById('stats').textContent =
+    `${data.total_scraped || 0} of ${data.total_expected || 0} scraped · last run ${fmtTime(data.scraped_at)}`;
+
+  const sel = document.getElementById('channelFilter');
+  sel.innerHTML = '<option value="">all channels</option>';
+  const channels = [...new Set(ALL.map(m=>m.channel_id))];
+  channels.forEach(c=>{
+    const o = document.createElement('option');
+    o.value = c; o.textContent = c;
+    sel.appendChild(o);
+  });
+
+  renderList();
+  if(viewMode === 'graph') renderChart();
+  if(viewMode === 'ai') renderAI();
+  document.getElementById('list-container').style.display = (viewMode === 'list') ? 'block' : 'none';
+  document.getElementById('chart-container').style.display = (viewMode === 'graph') ? 'flex' : 'none';
+  document.getElementById('ai-container').style.display = (viewMode === 'ai') ? 'flex' : 'none';
+  document.getElementById('scraper-container').style.display = (viewMode === 'scraper') ? 'flex' : 'none';
+}
+
+function setView(mode){
+  viewMode = mode;
+  document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+  if(mode === 'list') document.getElementById('listBtn').classList.add('active');
+  if(mode === 'graph') document.getElementById('graphBtn').classList.add('active');
+  if(mode === 'ai') document.getElementById('aiBtn').classList.add('active');
+  if(mode === 'scraper') document.getElementById('scraperBtn').classList.add('active');
+
+  document.getElementById('list-container').style.display = (mode === 'list') ? 'block' : 'none';
+  document.getElementById('chart-container').style.display = (mode === 'graph') ? 'flex' : 'none';
+  document.getElementById('ai-container').style.display = (mode === 'ai') ? 'flex' : 'none';
+  document.getElementById('scraper-container').style.display = (mode === 'scraper') ? 'flex' : 'none';
+
+  if(mode === 'graph') renderChart();
+  if(mode === 'ai') renderAI();
+  if(mode === 'list') renderList();
+  if(mode === 'scraper') refreshTokenSelect();
+}
+
+function setChartType(type){
+  chartType = type;
+  document.getElementById('hourlyTab').classList.toggle('active', type === 'hourly');
+  document.getElementById('weekdayTab').classList.toggle('active', type === 'weekday');
+  document.getElementById('weekdayFilter').style.display = (type === 'hourly') ? 'inline-block' : 'none';
+  if(viewMode === 'graph') renderChart();
+}
+function setWeekdayFilter(val){
+  selectedWeekday = parseInt(val);
+  if(viewMode === 'graph' && chartType === 'hourly') renderChart();
+}
+
+// =====================================================
+// File import
+// =====================================================
+document.getElementById('importBtn').addEventListener('click', ()=>{
+  document.getElementById('fileInput').click();
+});
+document.getElementById('fileInput').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    updateUI(data);
+    setView('list');
+  } catch(err){
+    alert('Failed to load JSON file: ' + err.message);
+  }
+  e.target.value = '';
+});
+
+// =====================================================
+// Init
+// =====================================================
+window.addEventListener('DOMContentLoaded', ()=>{
+  loadKeysIntoInputs();
+  populateModels('google');
+  refreshTokenSelect();
+
+  document.getElementById('listBtn').addEventListener('click', ()=> setView('list'));
+  document.getElementById('graphBtn').addEventListener('click', ()=> setView('graph'));
+  document.getElementById('aiBtn').addEventListener('click', ()=> setView('ai'));
+  document.getElementById('scraperBtn').addEventListener('click', ()=> setView('scraper'));
+  document.getElementById('hourlyTab').addEventListener('click', ()=> setChartType('hourly'));
+  document.getElementById('weekdayTab').addEventListener('click', ()=> setChartType('weekday'));
+  document.getElementById('weekdayFilter').addEventListener('change', (e)=> setWeekdayFilter(e.target.value));
+  document.getElementById('search').addEventListener('input', ()=>{ if(viewMode === 'list') renderList(); });
+  document.getElementById('channelFilter').addEventListener('change', ()=>{ if(viewMode === 'list') renderList(); });
+  document.getElementById('sortSel').addEventListener('change', ()=>{ if(viewMode === 'list') renderList(); });
+  document.getElementById('analyzeBtn').addEventListener('click', runAnalysis);
+
+  document.getElementById('weekdayFilter').style.display = 'inline-block';
+
+  // No login gate — show the tool immediately
+  updateUI({ messages: [] });
+  setView('list');
+});
+</script>
+</body>
+</html>

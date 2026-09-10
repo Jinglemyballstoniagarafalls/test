@@ -15,6 +15,7 @@ import os
 from flask import Flask, send_from_directory
 
 from services.acquaintance import acquaintance_bp
+from services.scrvi import scrvi_bp 
 
 # --------------------------------------------
 # CREATE FLASK APP
@@ -25,6 +26,7 @@ app = Flask(__name__, static_folder='static', template_folder='templates')
 # REGISTER SERVICES
 # --------------------------------------------
 app.register_blueprint(acquaintance_bp)
+app.register_blueprint(scrvi_bp)
 # app.register_blueprint(some_other_service_bp)   # <- future services go here
 
 # --------------------------------------------

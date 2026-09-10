@@ -1,238 +1,478 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Banana Suite</title>
-<style>
-/* ===== HOMEPAGE STYLES (from scrVi) ===== */
-:root{
-  --bg:#111214; --bg2:#1a1b1e; --panel:#1e1f22; --border:#2b2c2f;
-  --text:#e7e7e8; --sub:#8b8d92; --accent:#ffffff; --hover:#232427;
-}
-*{box-sizing:border-box;}
-body{margin:0;font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;}
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>396hz</title>
+    <style>
+        /* ===== ROOT ===== */
+        :root {
+            --bg: #111214;
+            --bg2: #1a1b1e;
+            --panel: #1e1f22;
+            --border: #2b2c2f;
+            --text: #e7e7e8;
+            --sub: #8b8d92;
+            --accent: #ffffff;
+            --hover: #232427;
+        }
+        * {
+            box-sizing: border-box;
+        }
+        html, body {
+            margin: 0;
+            font-family: -apple-system, Segoe UI, Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            height: 100dvh; /* accounts for mobile browser chrome */
+            overflow: hidden;
+        }
 
-#homepage {
-  position:fixed; top:0; left:0; width:100%; height:100%;
-  background-image: url('/static/bkg.png'), url('/static/bkg.png');
-  background-size: auto 100%, auto 100%;
-  background-repeat: repeat-x, repeat-x;
-  background-position: 0 0, 6688px 0;
-  display:flex; flex-direction:column; align-items:center; justify-content:center;
-  text-align:center; z-index:1000;
-  animation: panBackground 120s linear infinite;
-}
-#homepage::before {
-  content:'';
-  position:absolute; top:0; left:0; width:100%; height:100%;
-  background: radial-gradient(ellipse at center, transparent 25%, rgba(0,0,0,0.85) 100%);
-  pointer-events:none;
-  z-index:1;
-}
-#homepage > * {
-  position:relative;
-  z-index:2;
-}
+        /* ===== SHARED PANNING BACKGROUND ===== */
+        .pan-bg {
+            background-image: url('/static/wbkg.webp');
+            background-repeat: repeat-x;
+            background-size: auto 100%;
+            background-position: 0 0;
+        }
 
-#homepageText {
-  position:absolute;
-  top:50%; left:6%;
-  transform:translate(calc(44vw - 50%), -50%);
-  width:min(600px, 80%);
-  text-align:center;
-  will-change: transform;
-  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1),
-              text-align 0s linear 0.6s;
-}
-#homepage.login-mode #homepageText {
-  transform:translate(0, -50%);
-  text-align:left;
-}
-#homepage.login-mode #homepageText .desc {
-  margin-left:0;
-  margin-right:0;
-}
+        /* ===== HOMEPAGE ===== */
+        #homepage {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            z-index: 1000;
+            overflow-y: auto; /* safety valve on very short viewports, never clip content */
+        }
+        #homepage::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse at center, transparent 25%, rgba(0, 0, 0, 0.85) 100%);
+            pointer-events: none;
+            z-index: 1;
+        }
+        #homepage>* {
+            position: relative;
+            z-index: 2;
+        }
 
-#homepage h1 {
-  font-size:4rem; font-weight:700; color:#fff;
-  margin:0 0 0.3em;
-  text-shadow: 0 4px 12px rgba(0,0,0,1), 0 0 50px rgba(0,0,0,0.95);
-  filter: drop-shadow(0 0 40px rgba(0,0,0,1));
-}
-#homepage .desc {
-  font-size:1.3rem; color:#f0f0f0;
-  max-width:600px; margin:0 auto 1.5em;
-  opacity:0.95;
-  text-shadow: 0 3px 10px rgba(0,0,0,1), 0 0 40px rgba(0,0,0,0.9);
-  filter: drop-shadow(0 0 30px rgba(0,0,0,0.9));
-}
-#homepage button {
-  padding:14px 40px; font-size:1.2rem; background:rgba(30,31,34,0.85);
-  border:1px solid var(--border); color:var(--text); border-radius:8px;
-  cursor:pointer; backdrop-filter:blur(4px); transition:0.3s;
-  text-shadow: 0 1px 4px rgba(0,0,0,0.5);
-  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-}
-#homepage button:hover { background:var(--hover); }
+        /* ===== CENTER CONTENT ===== */
+        /* flex:1 + centered content, with desc-bottom as a normal-flow sibling below it,
+           means the content is always vertically centered in whatever space is left,
+           and the footer text can never overlap it, regardless of aspect ratio. */
+        #homepageText {
+            flex: 1 1 auto;
+            width: min(600px, 86vw);
+            min-height: 0;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(8px, 2vh, 20px);
+            padding: 4vh 0;
+        }
 
-#loginPanel {
-  position:absolute;
-  top:50%; right:6%;
-  transform:translate(24px,-50%);
-  width:min(280px, 80%);
-  display:flex; flex-direction:column; gap:14px;
-  opacity:0; pointer-events:none;
-  will-change: transform, opacity;
-  transition: opacity 0.45s ease 0.3s,
-              transform 0.45s cubic-bezier(0.22, 1, 0.36, 1) 0.3s;
-}
-#homepage.login-mode #loginPanel {
-  opacity:1; pointer-events:auto;
-  transform:translate(0,-50%);
-}
-#loginPanel input[type="password"] {
-  padding:12px 16px; font-size:1rem;
-  background:rgba(30,31,34,0.85);
-  border:1px solid var(--border); color:var(--text);
-  border-radius:8px; outline:none;
-  backdrop-filter:blur(4px);
-  text-shadow: 0 1px 4px rgba(0,0,0,0.5);
-}
-#loginPanel input[type="password"]:focus { border-color:#666; }
-#loginPanel #loginError {
-  min-height:1.2em; font-size:0.9rem; color:#ff6b6b;
-  text-shadow: 0 1px 4px rgba(0,0,0,0.6);
-}
+        /* ——— vector logo ——— */
+        #main-logo {
+            /* scales with width AND height so it never overflows short viewports */
+            width: min(80%, 500px, 48vh);
+            margin: 0 auto;
+        }
+        #main-logo svg {
+            display: block;
+            width: 100%;
+            height: auto;
+            filter: drop-shadow(0 4px 20px rgba(0, 0, 0, 0.9));
+        }
 
-@keyframes panBackground {
-  0% { background-position: 0 0, 6688px 0; }
-  100% { background-position: -6688px 0, 0 0; }
-}
+        /* ===== LOGIN CONTROLS ===== */
+        #loginControls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
 
-/* ===== SERVICES PAGE ===== */
-#services-page {
-  display: none;
-  position: fixed;
-  top:0; left:0; width:100%; height:100%;
-  background: var(--bg);
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  z-index: 999;
-}
-#services-page.active { display: flex; }
-.services-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 30px;
-  padding: 40px;
-  max-width: 800px;
-  width: 100%;
-}
-.service-card {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 30px 20px;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.3s;
-  color: var(--text);
-  text-decoration: none;
-}
-.service-card:hover {
-  background: var(--hover);
-  transform: translateY(-4px);
-  box-shadow: 0 8px 30px rgba(0,0,0,0.4);
-}
-.service-card .icon { font-size: 48px; margin-bottom: 12px; }
-.service-card .name { font-size: 18px; font-weight: 600; }
-.service-card .desc { font-size: 13px; color: var(--sub); margin-top: 6px; }
-.services-title {
-  font-size: 28px;
-  font-weight: 700;
-  color: var(--text);
-  margin-bottom: 20px;
-  text-align: center;
-  letter-spacing: 1px;
-}
-.services-sub {
-  color: var(--sub);
-  font-size: 16px;
-  margin-bottom: 30px;
-}
-</style>
+        /* plain white text, no underline, no box */
+        .text-btn {
+            background: transparent;
+            border: none;
+            padding: 0;
+            color: rgba(255, 255, 255, 0.85);
+            font-size: clamp(1rem, 0.6vw + 0.6vh, 1.2rem);
+            cursor: pointer;
+            font-family: inherit;
+            transition: opacity 0.2s ease;
+            line-height: 1.5;
+            text-decoration: none;
+        }
+        .text-btn:hover {
+            opacity: 1;
+            color: #ffffff;
+        }
+
+        #loginForm {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+        }
+
+        #loginPasswordInput {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            border-radius: 4px;
+            color: white;
+            padding: 10px 15px;
+            width: min(350px, 75vw);
+            font-size: 1rem;
+            font-family: inherit;
+            transition: border-color 0.2s ease;
+        }
+        #loginPasswordInput::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
+        #loginPasswordInput:focus {
+            outline: none;
+            border-color: #ffffff;
+        }
+
+        #loginError {
+            color: #ff6b6b;
+            min-height: 1.2em;
+            font-size: 0.9rem;
+            text-shadow: 0 1px 8px rgba(0, 0, 0, 0.8);
+        }
+
+        #homepage .desc-bottom {
+            flex: 0 0 auto;
+            width: 100%;
+            text-align: center;
+            font-size: clamp(0.8rem, 0.45vw + 0.45vh, 1rem);
+            color: #f0f0f0;
+            opacity: 0.95;
+            text-shadow: 0 3px 10px rgba(0,0,0,1), 0 0 40px rgba(0,0,0,0.9);
+            filter: drop-shadow(0 0 30px rgba(0,0,0,0.9));
+            padding: 0 20px;
+            padding-bottom: max(20px, env(safe-area-inset-bottom));
+            box-sizing: border-box;
+            pointer-events: none;
+            z-index: 3;
+        }
+
+        /* ===== SERVICES PAGE ===== */
+        #services-page {
+            display: none;
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            flex-direction: column;
+            justify-content: center;
+            z-index: 999;
+            /* shared sizing tokens: the grey panel and the text box both read from
+               these, so they always shrink/grow together no matter the aspect ratio */
+            --page-pad: clamp(20px, 6vw, 80px);
+            --panel-w: clamp(220px, 32vw, 480px);
+            padding: 4vh var(--page-pad);
+            overflow-y: auto; /* safety valve if the list ever grows past viewport height */
+        }
+        @media (max-width: 480px) {
+            #services-page {
+                --panel-w: clamp(160px, 55vw, 300px);
+            }
+        }
+        #services-page.active {
+            display: flex;
+        }
+
+        #services-page::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse at 70% 50%, transparent 30%, rgba(0, 0, 0, 0.70) 100%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        #services-left-bg {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: var(--panel-w);
+            height: 100%;
+            background: #18191c;
+            opacity: 0.9;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        /* The text box: capped so its right edge can never pass the grey panel's
+           right edge, at any aspect ratio - width tracks --panel-w exactly, minus
+           the page's own left padding and the left shift below, with a little
+           breathing room. --shift is capped to the padding itself so a -28px pull
+           toward the wall can't drag text past the page's own left edge either. */
+        .services-content {
+            position: relative;
+            z-index: 2;
+            width: 100%;
+            --shift: min(28px, var(--page-pad));
+            max-width: calc(var(--panel-w) - var(--page-pad) + var(--shift) - 20px);
+            transform: translateX(calc(-1 * var(--shift)));
+            /* establishes a query container so descendant font-sizes below can be
+               set in cqw - i.e. sized off THIS box's real rendered width, so they
+               shrink in lockstep with the panel instead of drifting out of sync
+               with it on tall/narrow aspect ratios */
+            container-type: inline-size;
+        }
+
+        .services-title {
+            font-size: clamp(1.4rem, 5vw, 2.6rem); /* fallback for browsers without container queries */
+            font-size: clamp(1.4rem, 8.5cqw, 2.6rem);
+            font-weight: 700;
+            color: #fff;
+            margin: 0 0 0.15em 0;
+            letter-spacing: -0.02em;
+            text-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+            overflow-wrap: break-word;
+        }
+
+        .services-sub {
+            font-size: clamp(0.85rem, 2.2vw, 1.05rem);
+            font-size: clamp(0.85rem, 3.6cqw, 1.05rem);
+            color: rgba(255, 255, 255, 0.55);
+            margin: 0 0 2em 0;
+            font-weight: 400;
+            text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+            letter-spacing: 0.02em;
+            overflow-wrap: break-word;
+        }
+
+        .services-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75em;
+        }
+
+        .services-list li {
+            margin: 0;
+            padding: 0;
+        }
+
+        .services-list a {
+            display: inline-block;
+            max-width: 100%;
+            font-size: clamp(1rem, 3vw, 1.4rem);
+            font-size: clamp(1rem, 4.8cqw, 1.4rem);
+            font-weight: 400;
+            color: #fff;
+            text-decoration: none;
+            padding: 0.15em 0;
+            border-bottom: 1px solid transparent;
+            transition: border-color 0.25s ease, opacity 0.25s ease, transform 0.2s ease;
+            text-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+            letter-spacing: -0.01em;
+            opacity: 0.85;
+            cursor: pointer;
+            padding-bottom: 22px;
+            overflow-wrap: break-word;
+        }
+
+        .services-list a:hover {
+            opacity: 1;
+            transform: translateX(4px);
+        }
+
+        .services-list .service-meta {
+            display: block;
+            font-size: clamp(0.65rem, 1.8vw, 0.78rem);
+            font-size: clamp(0.65rem, 2.8cqw, 0.78rem);
+            font-weight: 300;
+            color: rgba(255, 255, 255, 0.40);
+            margin-top: 0.1em;
+            letter-spacing: 0.04em;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+            padding-bottom: 6px;
+        }
+
+        .services-divider {
+            width: 60px;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.12);
+            margin: 0 0 1.5em 0;
+        }
+
+        /* Respect reduced-motion preference for the background pan */
+        @media (prefers-reduced-motion: reduce) {
+            .pan-bg { background-position: 0 0 !important; }
+        }
+    </style>
 </head>
 <body>
 
-<!-- HOMEPAGE -->
-<div id="homepage">
-  <div id="homepageText">
-    <h1>בָּנָנָה</h1>
-    <div class="desc">AI-Assisted analysis and information gathering suite.<br>sherut@mops.gov.il <br>+972 53 460 1693</div>
-    <button id="homepageLoginBtn">sign in?</button>
-  </div>
-  <div id="loginPanel">
-    <input type="password" id="loginPasswordInput" placeholder="Password" autocomplete="current-password">
-    <button id="authenticateBtn">Authenticate</button>
-    <div id="loginError"></div>
-  </div>
-</div>
+    <!-- ===== HOMEPAGE ===== -->
+    <div id="homepage" class="pan-bg">
+        <div id="homepageText">
+            <!-- vector logo -->
+            <div id="main-logo">
+                <svg viewBox="0 0 457 212" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M259.954 64.753 C 267.352 68.479,269.893 73.189,268.120 79.889 C 265.606 89.388,264.798 90.128,225.049 119.324 C 215.849 126.081,214.082 127.000,210.299 127.000 C 207.934 127.000,206.000 126.823,206.000 126.606 C 206.000 126.390,213.443 120.652,222.541 113.856 L 239.082 101.500 229.223 100.948 C 218.566 100.352,214.391 98.757,210.771 93.900 C 206.641 88.359,209.122 77.986,216.162 71.358 C 226.851 61.295,247.042 58.250,259.954 64.753 M321.000 61.368 C 321.000 61.571,314.020 67.041,305.489 73.524 C 296.958 80.007,290.132 85.465,290.320 85.653 C 290.508 85.841,293.325 85.498,296.581 84.891 C 304.456 83.422,314.449 84.220,320.239 86.782 C 325.966 89.315,328.991 93.783,328.996 99.716 L 329.000 103.932 333.250 101.126 C 342.844 94.790,344.541 94.472,367.000 94.796 C 378.275 94.959,392.675 95.418,399.000 95.816 C 409.418 96.471,407.819 96.606,382.000 97.246 C 344.556 98.174,344.497 98.193,324.081 115.037 C 312.867 124.289,307.863 126.156,292.612 126.774 C 285.412 127.066,278.685 126.800,275.555 126.100 C 265.313 123.808,259.645 115.745,262.035 106.868 C 264.450 97.903,267.238 95.165,296.859 72.666 C 311.058 61.881,312.549 61.000,316.609 61.000 C 319.024 61.000,321.000 61.166,321.000 61.368 M194.685 65.067 C 199.039 66.716,202.000 70.011,202.000 73.206 C 202.000 77.791,199.416 82.709,195.742 85.117 L 192.333 87.352 196.666 91.505 C 200.641 95.313,201.000 96.069,201.000 100.633 C 201.000 109.231,194.595 117.101,183.445 122.203 C 178.967 124.252,176.680 124.499,159.213 124.825 C 148.604 125.023,139.199 124.907,138.313 124.567 C 136.909 124.028,136.989 123.641,138.935 121.570 C 141.097 119.268,141.741 119.180,158.834 118.846 C 175.833 118.513,176.716 118.394,182.226 115.688 C 190.693 111.530,194.507 105.052,192.021 99.051 C 190.256 94.790,184.985 92.630,175.250 92.178 C 169.210 91.897,167.000 91.436,167.000 90.454 C 167.000 87.928,171.295 86.001,176.973 85.978 C 184.110 85.950,190.352 83.153,192.485 79.029 C 196.212 71.822,191.300 69.482,174.089 70.267 C 158.410 70.981,155.448 72.261,141.906 84.170 C 129.784 94.830,125.049 97.609,116.685 98.970 C 111.452 99.822,68.439 98.772,67.435 97.768 C 67.187 97.520,77.086 97.015,89.433 96.644 C 121.242 95.691,122.068 95.384,141.009 77.443 C 147.723 71.084,155.199 66.629,161.746 65.086 C 167.130 63.817,191.349 63.803,194.685 65.067 M236.203 68.105 C 224.620 70.056,217.000 76.870,217.000 85.276 C 217.000 91.695,222.957 95.000,234.528 95.000 C 244.217 95.000,251.607 92.284,256.422 86.954 C 262.545 80.177,261.004 72.181,253.000 69.203 C 248.768 67.628,241.755 67.170,236.203 68.105 M293.121 91.071 C 275.251 94.225,264.404 107.557,272.842 115.996 C 276.746 119.900,282.752 121.296,293.500 120.796 C 306.888 120.173,314.811 116.147,319.097 107.790 C 322.627 100.908,320.889 95.105,314.500 92.436 C 310.079 90.588,299.634 89.922,293.121 91.071 " stroke="none" fill="white" fill-rule="evenodd"/>
+                </svg>
+            </div>
 
-<!-- SERVICES PAGE -->
-<div id="services-page">
-  <div class="services-title">Available Services</div>
-  <div class="services-sub">Select a tool to begin</div>
-  <div class="services-grid">
-    <div class="service-card" id="service-acquaintance">
-      <div class="icon">🕶️</div>
-      <div class="name">Acquaintance</div>
-      <div class="desc">Social graph analysis &amp; message viewer</div>
+            <!-- Login Controls -->
+            <div id="loginControls">
+                <div id="loginPrompt">
+                    <button id="homepageLoginBtn" class="text-btn">sign in?</button>
+                </div>
+                <div id="loginForm">
+                    <input type="password" id="loginPasswordInput" placeholder="Token" autocomplete="current-password" />
+                    <button id="authenticateBtn" class="text-btn">Authenticate</button>
+                    <div id="loginError"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="desc-bottom">need an account? msg @396hz on discord!</div>
     </div>
-    <!-- Add more services here later -->
-  </div>
-</div>
 
-<script>
-// ===== HOMEPAGE LOGIC =====
-const HARDCODED_PASSWORD = "zen";
+    <!-- ===== SERVICES PAGE ===== -->
+    <div id="services-page" class="pan-bg">
+        <div id="services-left-bg"></div>
+        <div class="services-content">
+            <div class="services-title">Available Services</div>
+            <div class="services-sub">select a tool to begin.</div>
+            <div class="services-divider"></div>
+            <ul class="services-list">
+                <li>
+                    <a id="service-acquaintance">
+                        Acquaintance
+                        <span class="service-meta">R* Social Club Viewer</span>
+                    </a>
+                    <div>
+                    <a id="service-scrVI">
+                        scrVI
+                        <span class="service-meta">Ai-Assisted Discord Mass Message Analyzer</span>
+                    </a>
+                    </div>
+                </li>
+            </ul>
+        </div>
+    </div>
 
-function showLoginPanel() {
-  document.getElementById('homepage').classList.add('login-mode');
-  setTimeout(()=> document.getElementById('loginPasswordInput').focus(), 350);
-}
+    <script>
+        // ===== HOMEPAGE LOGIC =====
+        const HARDCODED_PASSWORD = "zen";
 
-function attemptLogin() {
-  const input = document.getElementById('loginPasswordInput');
-  const errorDiv = document.getElementById('loginError');
-  if(input.value === HARDCODED_PASSWORD) {
-    errorDiv.textContent = '';
-    enterDashboard();
-  } else {
-    errorDiv.textContent = 'Incorrect password';
-    input.value = '';
-    input.focus();
-  }
-}
+        const loginPrompt = document.getElementById('loginPrompt');
+        const loginForm = document.getElementById('loginForm');
+        const loginInput = document.getElementById('loginPasswordInput');
+        const loginError = document.getElementById('loginError');
+        const homepageLoginBtn = document.getElementById('homepageLoginBtn');
+        const authenticateBtn = document.getElementById('authenticateBtn');
 
-function enterDashboard() {
-  document.getElementById('homepage').style.display = 'none';
-  document.getElementById('services-page').classList.add('active');
-}
+        function showLoginForm() {
+            loginPrompt.style.display = 'none';
+            loginForm.style.display = 'flex';
+            loginInput.focus();
+        }
 
-// ===== SERVICES -> ACQUAINTANCE =====
-document.getElementById('service-acquaintance').addEventListener('click', function() {
-  // Redirect to the actual Acquaintance app
-  window.location.href = '/acquaintance';
-});
+        function attemptLogin() {
+            if (loginInput.value === HARDCODED_PASSWORD) {
+                loginError.textContent = '';
+                enterDashboard();
+            } else {
+                loginError.textContent = 'Incorrect password';
+                loginInput.value = '';
+                loginInput.focus();
+            }
+        }
 
-// ===== EVENT LISTENERS =====
-document.getElementById('homepageLoginBtn').addEventListener('click', showLoginPanel);
-document.getElementById('authenticateBtn').addEventListener('click', attemptLogin);
-document.getElementById('loginPasswordInput').addEventListener('keydown', (e) => {
-  if(e.key === 'Enter') attemptLogin();
-});
-</script>
+        function enterDashboard() {
+            document.getElementById('homepage').style.display = 'none';
+            document.getElementById('services-page').classList.add('active');
+        }
+
+        // ===== SERVICES -> ACQUAINTANCE =====
+        document.getElementById('service-acquaintance').addEventListener('click', function() {
+            window.location.href = '/acquaintance';
+        });
+        document.getElementById('service-scrVI').addEventListener('click', function() {
+            window.location.href = '/scrvi';
+        });
+
+        // ===== EVENT LISTENERS =====
+        homepageLoginBtn.addEventListener('click', showLoginForm);
+        authenticateBtn.addEventListener('click', attemptLogin);
+        loginInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') attemptLogin();
+        });
+
+        // ===== RESOLUTION-INDEPENDENT BACKGROUND PAN =====
+        // Old approach hardcoded a 6688px pan distance, which only matched the
+        // rendered tile width at one specific viewport height. Since the image is
+        // scaled to `auto 100%`, its actual on-screen width changes with every
+        // resolution/aspect ratio, so that fixed number caused a visible jump/seam
+        // everywhere else. Instead we measure the image's real natural size once,
+        // compute the true rendered tile width for the *current* viewport height,
+        // and drive the pan with JS so it always loops seamlessly and keeps a
+        // consistent "full loop every 120s" speed regardless of screen shape.
+        (function () {
+            const bgEls = [document.getElementById('homepage'), document.getElementById('services-page')];
+            const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            if (reduceMotion) return;
+
+            const LOOP_SECONDS = 120;
+            let tileWidth = 0;
+            let offset = 0;
+            let lastTime = null;
+
+            function computeTileWidth(naturalW, naturalH) {
+                if (!naturalW || !naturalH) return 0;
+                return window.innerHeight * (naturalW / naturalH);
+            }
+
+            const img = new Image();
+            img.src = '/static/wbkg.webp';
+
+            img.onload = function () {
+                tileWidth = computeTileWidth(img.naturalWidth, img.naturalHeight);
+                requestAnimationFrame(step);
+            };
+
+            window.addEventListener('resize', function () {
+                tileWidth = computeTileWidth(img.naturalWidth, img.naturalHeight);
+            });
+
+            function step(timestamp) {
+                if (lastTime === null) lastTime = timestamp;
+                const dt = (timestamp - lastTime) / 1000;
+                lastTime = timestamp;
+
+                if (tileWidth > 0) {
+                    const pxPerSecond = tileWidth / LOOP_SECONDS;
+                    offset = (offset + pxPerSecond * dt) % tileWidth;
+                    const posX = (-offset) + 'px';
+                    bgEls.forEach(function (el) {
+                        if (el) el.style.backgroundPositionX = posX;
+                    });
+                }
+                requestAnimationFrame(step);
+            }
+        })();
+    </script>
+
 </body>
 </html>
